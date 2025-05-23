@@ -6,31 +6,29 @@
   <title>リアルタイムオセロ</title>
   <style>
     body {
+      background-color: #228B22;
+      color: white;
       font-family: sans-serif;
-      padding: 10px;
     }
 
     canvas {
       border: 2px solid black;
       display: block;
-      margin: 10px auto;
-      touch-action: manipulation;
+      margin: 20px auto;
+      background-color: #006400;
     }
 
-    #roomInput,
-    #roomIDDisplay,
-    #turnDisplay,
-    #scoreDisplay,
-    #passButton {
+    #roomInput, #roomIDDisplay, #turnDisplay, #scoreDisplay, #passButtonContainer {
       text-align: center;
       margin-top: 10px;
-      font-size: 18px;
     }
 
-    input,
-    button {
-      font-size: 16px;
+    #roomInput input,
+    #roomInput button,
+    #passButton {
       margin: 5px;
+      padding: 5px 10px;
+      font-size: 16px;
     }
   </style>
   <script type="module">
@@ -47,7 +45,6 @@
       appId: "1:435852264433:web:63cdbef6f7742b34b13a50",
       measurementId: "G-FRDGGQNEZY"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
@@ -71,15 +68,19 @@
           }
         }
       }
+      updateScoreDisplay();
+      updateTurnDisplay();
     }
 
-    function updateDisplays() {
-      document.getElementById("turnDisplay").innerText = `現在のターン：${turn === 1 ? '黒' : '白'}`;
-      document.getElementById("turnDisplay").style.color = turn === 1 ? 'black' : 'red';
-      const flat = board.flat();
-      const black = flat.filter(c => c === 1).length;
-      const white = flat.filter(c => c === 2).length;
+    function updateScoreDisplay() {
+      const black = board.flat().filter(c => c === 1).length;
+      const white = board.flat().filter(c => c === 2).length;
       document.getElementById("scoreDisplay").innerText = `黒: ${black}　白: ${white}`;
+    }
+
+    function updateTurnDisplay() {
+      const current = turn === 1 ? "黒" : "白";
+      document.getElementById("turnDisplay").innerText = `現在のターン: ${current}`;
     }
 
     function getFlippedStones(x, y, color) {
@@ -122,28 +123,28 @@
       turn = 3 - turn;
 
       set(ref(db, `othello/${roomID}`), { board, turn });
-      drawBoard();
-      updateDisplays();
     }
 
-    function passTurn() {
-      if (playerID === turn && !hasValidMove(turn)) {
-        turn = 3 - turn;
-        set(ref(db, `othello/${roomID}`), { board, turn });
-        updateDisplays();
-      } else {
+    function handlePass() {
+      if (playerID !== turn) return;
+      if (hasValidMove(playerID)) {
         alert("まだ打てる場所があります。");
+        return;
       }
+      turn = 3 - turn;
+      set(ref(db, `othello/${roomID}`), { board, turn });
     }
 
     window.onload = () => {
       canvas = document.getElementById("board");
       ctx = canvas.getContext("2d");
+
       canvas.addEventListener("click", e => {
         const rect = canvas.getBoundingClientRect();
         const x = Math.floor((e.clientX - rect.left) / 50);
         const y = Math.floor((e.clientY - rect.top) / 50);
         placeStone(x, y);
+        drawBoard();
       });
 
       document.getElementById("createBtn").onclick = () => {
@@ -156,7 +157,6 @@
         set(ref(db, `othello/${roomID}`), { board, turn });
         document.getElementById("roomIDDisplay").innerText = `ルームID: ${roomID}`;
         drawBoard();
-        updateDisplays();
       };
 
       document.getElementById("joinBtn").onclick = () => {
@@ -169,7 +169,6 @@
             board = data.board;
             turn = data.turn;
             drawBoard();
-            updateDisplays();
 
             if (turn === playerID && !hasValidMove(playerID)) {
               if (!hasValidMove(3 - playerID)) {
@@ -184,9 +183,10 @@
             }
           }
         });
+        drawBoard();
       };
 
-      document.getElementById("passButton").onclick = passTurn;
+      document.getElementById("passButton").onclick = handlePass;
     };
   </script>
 </head>
@@ -200,10 +200,10 @@
   <div id="roomIDDisplay"></div>
   <div id="turnDisplay"></div>
   <div id="scoreDisplay"></div>
-  <canvas id="board" width="400" height="400"></canvas>
-  <div id="passButton">
-    <button>パスする</button>
+  <div id="passButtonContainer">
+    <button id="passButton">パスする</button>
   </div>
+  <canvas id="board" width="400" height="400"></canvas>
 </body>
 
 </html>
